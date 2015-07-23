@@ -2,3 +2,6 @@
 name = "redis-markov"
 version = "0.1.0"
 authors = ["Berach <joey.mull1@gmail.com>"]
+
+[dependencies.redis]
+git = "https://github.com/mitsuhiko/redis-rs.git"
