@@ -16,3 +16,4 @@ Cargo.lock
 
 ### Project Specific ###
 main.rs
+*.txt

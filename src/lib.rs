@@ -122,9 +122,9 @@ mod tests {
     fn add_words_to_redis() {
         let client = redis::Client::open("redis://localhost").unwrap();
         let con = client.get_connection().unwrap();
-        let teststring = "test_string_please_ignore test_string_please_ignore success";
+        let teststring = "£ test_string_please_ignore success";
         let _ = learn(&con, teststring);
-        let result : Vec<String> = con.zrevrange("test_string_please_ignore:test_string_please_ignore", 0, -1).unwrap();
+        let result : Vec<String> = con.zrevrange("@:test_string_please_ignore", 0, -1).unwrap();
         assert_eq!(result[0], "success");
     }
 
@@ -132,7 +132,7 @@ mod tests {
     fn generate_something() {
         let client = redis::Client::open("redis://localhost").unwrap();
         let con = client.get_connection().unwrap();
-        let result = generate(&con, "test_string_please_ignore");
+        let result = generate(&con, "£", "");
         assert!(result.len() > 0);
     }
 }
