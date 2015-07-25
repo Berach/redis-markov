@@ -3,6 +3,8 @@ extern crate rand;
 use self::rand::{thread_rng, sample};
 use redis::Commands;
 
+
+/// Adds the input text to our redis brain
 #[no_mangle]
 pub extern fn learn(con: &redis::Connection, input: &str) -> redis::RedisResult<()> {
     let mut prev = "";
@@ -12,14 +14,16 @@ pub extern fn learn(con: &redis::Connection, input: &str) -> redis::RedisResult<
     loop {
         let word = match it.next() {
             Some(x) => x,
-            None => break,
+            None => break, // If we don't have anymore words, exit the loop
         };
 
         let key = make_key(prev, word);
 
+        // Add our key and member to redis
         if it.peek().is_some() {
             let _ : () = try!(con.zincr(key, *it.peek().unwrap(), 1));
         } else {
+            // If there is no next value, add a \n as the member instead
             let _ : () = try!(con.zincr(key, "\n" , 1));
         }
 
@@ -28,6 +32,7 @@ pub extern fn learn(con: &redis::Connection, input: &str) -> redis::RedisResult<
     Ok(())
 }
 
+/// Generates text using the redis brain from the seed given
 #[no_mangle]
 pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
     let mut prev = "".to_string();
@@ -37,6 +42,9 @@ pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
     loop {
         let mut key = make_key(&prev, &cur);
         let all_keys : Vec<String> = redis::cmd("KEYS").arg("*").query(con).unwrap();
+
+        // If our key doesn't exist in the db, clear the result and
+        // grab a new random key to start generation
         if !all_keys.contains(&key) {
             result.clear();
             key = choice(all_keys);
@@ -45,11 +53,12 @@ pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
             result.push_str(&cur);
         }
 
+        // Query redis for our key and choose the next word from the members
         let members : Vec<(String, i32)> = con.zrevrange_withscores(key, 0, -1).unwrap();
         let options = get_options(members);
         let next = choice(options);
 
-        if next != "\n" {
+        if next != "\n" { // Stop generation if the next character is EOL
             result.push_str(" ");
             result.push_str(&next);
             prev = cur;
@@ -62,11 +71,13 @@ pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
     result
 }
 
+/// Returns the members with the top score
 fn get_options(members: Vec<(String, i32)>) -> Vec<String> {
     let mut options : Vec<String> = Vec::new();
     let mut prev_score = 0;
 
     for (member, score) in members {
+        // Continue to add members as long as they have the same joint top score
         if score < prev_score {
             break;
         } else {
@@ -77,11 +88,12 @@ fn get_options(members: Vec<(String, i32)>) -> Vec<String> {
     options
 }
 
-/// Takes two words and joins them with colons
+/// Takes two words and joins them with colons for redis serialisation
 fn make_key(str1: &str, str2: &str) -> String {
     str1.to_string() + ":" + str2
 }
 
+// Takes a vector and chooses one variable from it
 fn choice<T: Clone>(v: Vec<T>) -> T {
     let mut rng = thread_rng();
     sample(&mut rng, v.iter(), 1).pop().unwrap().clone()
