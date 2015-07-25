@@ -2,7 +2,6 @@ extern crate redis;
 extern crate rand;
 use self::rand::{thread_rng, sample};
 use redis::Commands;
-use std::collections::HashSet;
 
 
 /// Adds the input text to our redis brain
@@ -79,7 +78,7 @@ fn get_options(members: Vec<(String, i32)>, bias: &str) -> Vec<String> {
 
     // Add members in our bias to the options
     let bias : Vec<&str> = bias.split_whitespace().collect();
-    for (member, score) in members.clone() {
+    for (member, _) in members.clone() {
         if bias.contains(&&*member) {
             options.push(member)
         }
