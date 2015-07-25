@@ -33,30 +33,27 @@ pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
     let mut prev = "".to_string();
     let mut cur = seed.to_string();
     let mut result = seed.to_string(); // Start our result with the seed passed to us
-    let mut rng = thread_rng();
 
     loop {
         let mut key = make_key(&prev, &cur);
         let all_keys : Vec<String> = redis::cmd("KEYS").arg("*").query(con).unwrap();
-        println!("Current Key: {:?}", key);
         if !all_keys.contains(&key) {
-            key = sample(&mut rng, all_keys.iter(), 1).pop().unwrap().clone();
-            let mut split : Vec<&str> = key.split(":").collect();
-            cur = split.pop().unwrap().to_string();
+            result.clear();
+            key = choice(all_keys);
+            let mut s : Vec<&str> = key.split(":").collect();
+            cur = s.pop().unwrap().to_string();
             result.push_str(&cur);
-            println!("New Key: {:?}", key);
         }
+
         let members : Vec<(String, i32)> = con.zrevrange_withscores(key, 0, -1).unwrap();
-
         let options = get_options(members);
+        let next = choice(options);
 
-        let choice = sample(&mut rng, options.iter(), 1).pop().unwrap();
-
-        if choice != "\n" {
+        if next != "\n" {
             result.push_str(" ");
-            result.push_str(choice);
+            result.push_str(&next);
             prev = cur;
-            cur = choice.clone();
+            cur = next.clone();
         } else {
             break;
         }
@@ -83,6 +80,11 @@ fn get_options(members: Vec<(String, i32)>) -> Vec<String> {
 /// Takes two words and joins them with colons
 fn make_key(str1: &str, str2: &str) -> String {
     str1.to_string() + ":" + str2
+}
+
+fn choice<T: Clone>(v: Vec<T>) -> T {
+    let mut rng = thread_rng();
+    sample(&mut rng, v.iter(), 1).pop().unwrap().clone()
 }
 
 #[cfg(test)]
