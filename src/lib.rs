@@ -34,12 +34,12 @@ pub extern fn learn(con: &redis::Connection, input: &str) -> redis::RedisResult<
 
 /// Generates text using the redis brain from the seed given
 #[no_mangle]
-pub extern fn generate(con: &redis::Connection, seed: &str, bias: &str) -> String {
+pub extern fn generate(con: &redis::Connection, seed: &str, bias: &str, limit: usize) -> String {
     let mut prev = "".to_string();
     let mut cur = seed.to_string();
     let mut result = seed.to_string(); // Start our result with the seed passed to us
 
-    loop {
+    while result.clone().split_whitespace().collect::<Vec<_>>().len() < limit {
         let mut key = make_key(&prev, &cur);
         let all_keys : Vec<String> = redis::cmd("KEYS").arg("*").query(con).unwrap();
 
@@ -122,7 +122,7 @@ mod tests {
     fn add_words_to_redis() {
         let client = redis::Client::open("redis://localhost").unwrap();
         let con = client.get_connection().unwrap();
-        let teststring = "£ test_string_please_ignore success";
+        let teststring = "£ test_string_please_ignore success.";
         let _ = learn(&con, teststring);
         let result : Vec<String> = con.zrevrange("@:test_string_please_ignore", 0, -1).unwrap();
         assert_eq!(result[0], "success");
@@ -132,7 +132,7 @@ mod tests {
     fn generate_something() {
         let client = redis::Client::open("redis://localhost").unwrap();
         let con = client.get_connection().unwrap();
-        let result = generate(&con, "£", "");
+        let result = generate(&con, "£", "", 1);
         assert!(result.len() > 0);
     }
 }
