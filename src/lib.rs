@@ -2,6 +2,7 @@ extern crate redis;
 extern crate rand;
 use self::rand::{thread_rng, sample};
 use redis::Commands;
+use std::collections::HashSet;
 
 
 /// Adds the input text to our redis brain
@@ -34,7 +35,7 @@ pub extern fn learn(con: &redis::Connection, input: &str) -> redis::RedisResult<
 
 /// Generates text using the redis brain from the seed given
 #[no_mangle]
-pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
+pub extern fn generate(con: &redis::Connection, seed: &str, bias: &str) -> String {
     let mut prev = "".to_string();
     let mut cur = seed.to_string();
     let mut result = seed.to_string(); // Start our result with the seed passed to us
@@ -55,7 +56,7 @@ pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
 
         // Query redis for our key and choose the next word from the members
         let members : Vec<(String, i32)> = con.zrevrange_withscores(key, 0, -1).unwrap();
-        let options = get_options(members);
+        let options = get_options(members, bias);
         let next = choice(options);
 
         if next != "\n" { // Stop generation if the next character is EOL
@@ -72,9 +73,22 @@ pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
 }
 
 /// Returns the members with the top score
-fn get_options(members: Vec<(String, i32)>) -> Vec<String> {
+fn get_options(members: Vec<(String, i32)>, bias: &str) -> Vec<String> {
     let mut options : Vec<String> = Vec::new();
     let mut prev_score = 0;
+
+    // Add members in our bias to the options
+    let bias : Vec<&str> = bias.split_whitespace().collect();
+    for (member, score) in members.clone() {
+        if bias.contains(&&*member) {
+            options.push(member)
+        }
+    }
+
+    // Return early if we found a word in our bias
+    if options.len() > 0 {
+        return options
+    }
 
     for (member, score) in members {
         // Continue to add members as long as they have the same joint top score
