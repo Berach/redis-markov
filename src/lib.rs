@@ -34,7 +34,7 @@ pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
 
     loop {
         let key = make_key(&prev, &cur);
-        let members : Vec<String> = con.zrange(key, 0, -1).unwrap();
+        let members : Vec<String> = con.zrevrange(key, 0, -1).unwrap();
         if members.len() > 0 {
             result.push_str(" ");
             result.push_str(&members[0]);
@@ -65,7 +65,7 @@ mod tests {
         let con = client.get_connection().unwrap();
         let teststring = "test_string_please_ignore test_string_please_ignore success";
         let _ = learn(&con, teststring);
-        let result : Vec<String> = con.zrange("test_string_please_ignore:test_string_please_ignore", 0, -1).unwrap();
+        let result : Vec<String> = con.zrevrange("test_string_please_ignore:test_string_please_ignore", 0, -1).unwrap();
         assert_eq!(result[0], "success");
     }
 
