@@ -34,12 +34,13 @@ pub extern fn learn(con: &redis::Connection, input: &str) -> redis::RedisResult<
 
 /// Generates text using the redis brain from the seed given
 #[no_mangle]
-pub extern fn generate(con: &redis::Connection, seed: &str, bias: &str, limit: usize) -> String {
+pub extern fn generate(con: &redis::Connection, seed: &str, bias: &str, limit: i16) -> String {
     let mut prev = "".to_string();
     let mut cur = seed.to_string();
     let mut result = seed.to_string(); // Start our result with the seed passed to us
+    let mut count = 1i16;
 
-    while result.clone().split_whitespace().collect::<Vec<_>>().len() < limit {
+    while count < limit {
         let mut key = make_key(&prev, &cur);
         let all_keys : Vec<String> = redis::cmd("KEYS").arg("*").query(con).unwrap();
 
@@ -63,7 +64,14 @@ pub extern fn generate(con: &redis::Connection, seed: &str, bias: &str, limit: u
             result.push_str(&next);
             prev = cur;
             cur = next.clone();
+            count += 1i16;
         } else {
+            break;
+        }
+
+        // Stop generating if we're within 10% of our limit
+        // and the next word ends with a period to make the ending seem more natural
+        if (count as f32) > (limit as f32) * 0.9f32 && next.ends_with(".") {
             break;
         }
     }
