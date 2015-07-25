@@ -35,7 +35,7 @@ pub extern fn generate(con: &redis::Connection, seed: &str) -> String {
     loop {
         let key = make_key(&prev, &cur);
         let members : Vec<String> = con.zrevrange(key, 0, -1).unwrap();
-        if members.len() > 0 {
+        if members.len() > 0 && members[0] != "\n" {
             result.push_str(" ");
             result.push_str(&members[0]);
             prev = cur;
